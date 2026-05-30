@@ -1,5 +1,7 @@
 venv/
 src/.env
+src/logs
+src/data
 __pycache__/
 *.pyc
 *.db
