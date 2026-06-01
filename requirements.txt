@@ -1,2 +1,5 @@
 dotenv==0.9.9
+logging==0.4.9.6
+playwright==1.60.0
 python-dotenv==1.2.2
+
