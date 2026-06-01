@@ -1,5 +1,6 @@
 venv/
 src/.env
+tests/
 logs/
 data/
 __pycache__/
