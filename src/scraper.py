@@ -29,11 +29,35 @@ logs_dir.mkdir(exist_ok=True)
 data_dir.mkdir(exist_ok=True)
 
 # user agent for the scraper
-user_agent = (
+user_agent_pool: list[str] = [
+    # Chrome no Windows 10/11
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36"
-)
+    "Chrome/131.0.0.0 Safari/537.36",
+
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/130.0.0.0 Safari/537.36",
+
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/129.0.0.0 Safari/537.36",
+
+    # Chrome no macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36",
+
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/130.0.0.0 Safari/537.36",
+
+    # Edge no Windows (Edge usa engine Chromium, UA é praticamente Chrome
+    # com sufixo "Edg/" — é um navegador comum e legítimo)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
+]
 
 card_selector = "[data-component-type='s-search-result']"
 # Dentro de cada card:
@@ -67,7 +91,18 @@ class Product:
     old_price: Decimal | None = None    
     rating: float | None = None 
     num_reviews: int | None = None  
+
+def get_random_user_agent() -> str:
+    """Get a random user agent from the pool.
+
+    Returns:
+        str: A random user agent string.
+    """
+    if not user_agent_pool:
+        raise ValueError("User agent pool is empty.")
     
+    return random.choice(user_agent_pool)
+
 def parse_price_br(price_str: str | None) -> Decimal | None:
     """Parse the scrapped price string.
 
@@ -292,12 +327,14 @@ def run(query: str, limit: int, headless: bool, debug: bool) -> None:
             args=["--disable-blink-features=AutomationControlled"],
         )
         
+        user_agent = get_random_user_agent()
         # setting the context window
         context = browser.new_context(
             user_agent=user_agent,
             viewport={"width": 1920, "height": 1080},
             locale="pt-BR"
         )
+        logger.info("Set UA to %s", user_agent)
 
         # opening a new page in the context
         page = context.new_page()
@@ -311,6 +348,8 @@ def run(query: str, limit: int, headless: bool, debug: bool) -> None:
         page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         logger.info("Page loaded successfully | title: %s", page.title())
         
+        error = False
+        
         #early exit if the page title indicates a captcha or block
         try:
             # wait for the product cards to be visible
@@ -319,14 +358,8 @@ def run(query: str, limit: int, headless: bool, debug: bool) -> None:
             logger.info("Product cards are visible on the page.")
         except PlaywrightTimeoutError:
             logger.error("Timeout while waiting for product cards to load. Didn't load in 15s")
-            
-            shot_path = data_dir / f"timeout_{_timestamp()}.png"
-            page.screenshot(path=shot_path)
-            
-            logger.info("Saved screenshot of the timeout at %s", shot_path)
-            
-            context.close()
-            browser.close()
+            error = True
+    
             return
         
         # scrapping the products
@@ -361,26 +394,29 @@ def run(query: str, limit: int, headless: bool, debug: bool) -> None:
             
             # screenshot debug
             if debug:
-                shot_path = data_dir / f"debug_{_timestamp()}.png"
+                shot_path = logs_dir / f"debug_{_timestamp()}.png"
                 page.screenshot(path=shot_path)
                 logger.info("Saved debug screenshot at %s", shot_path)
                 logger.info("Pausing for inspection.")
                 page.pause() # pause the browser for inspection
-                
-            context.close()
-            browser.close()
+            
         except Exception:
             logger.exception("An error occurred during scraping.")
-            
-            shot_path = data_dir / f"debug_{_timestamp()}.png"
-            page.screenshot(path=shot_path)
-            logger.info("Saved debug screenshot at %s", shot_path)
-            
+            error = True
+            raise
+
+        finally:
+            if error:
+                shot_path = logs_dir / f"debug_{_timestamp()}.png"
+                try:
+                    page.screenshot(path=shot_path)
+                    logger.info("Saved debug screenshot at %s", shot_path)
+                except Exception:
+                    logger.exception("An error occurred while saving the debug screenshot.")
+
+            logger.info("Closing the browser.")
             context.close()
             browser.close()
-            raise
-        
-  
 
 def main() -> None:
     """Main function to execute the Amazon Scraper."""
