@@ -10,6 +10,15 @@ pip install -r requirements.txt
 cp .env.example .env  # edite com seus valores
 ```
 
+## Scrapper variables
+```
+--query
+--limit
+--headless or --no-headless
+--debug
+```
+
+
 ## smoke test
 
 ```bash

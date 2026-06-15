@@ -109,7 +109,7 @@ amazon-wpp-bot/
 
 ## Convenções
 
-- **Idioma**: português do Brasil em comentários, docstrings, mensagens de log e UI. Identificadores de código (variáveis, funções) também em português quando fizer sentido — só em inglês quando for termo técnico estabelecido (`scrape`, `upsert`, `webhook`).
+- **Idioma**: Inglês em comentários, docstrings, mensagens de log, UI e identificadores de código.
 - **Estilo**: PEP 8. Se for adotar formatter, usar **`ruff format`** (substituto moderno de black).
 - **Linting**: `ruff check`.
 - **Tipagem**: type hints em todas as funções públicas. `Decimal` pra dinheiro, nunca `float`.
